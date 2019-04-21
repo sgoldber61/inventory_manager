@@ -1,0 +1,25 @@
+version: '3'
+services:
+  dev:
+    image: 'sgoldber61/inv-dev'
+    container_name: 'inv-dev'
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/usr/src/app
+      - node_modules:/usr/src/app/node_modules
+    command: ["npm", "run", "dev"]
+    depends_on:
+      - 'postgres-db'
+  postgres-db:
+    image: 'sgoldber61/inv-postgres'
+    container_name: 'inv-database'
+    environment:
+      - POSTGRES_PASSWORD=admin
+      - POSTGRES_USER=admin
+      - POSTGRES_DB=inventory
+    volumes:
+      - dev-db-volume:/var/lib/postgresql/data
+volumes:
+  node_modules:
+  dev-db-volume:

@@ -1,0 +1,33 @@
+{
+  "name": "inventory_manager",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node ./server/index.js",
+    "dev": "NODE_ENV=development nodemon ./server/index.js",
+    "docker-dev": "docker-compose -f docker-compose-dev.yml up",
+    "docker-dev:down": "docker-compose -f docker-compose-dev.yml down",
+    "docker-remove-all": "docker rm $(docker ps -q -a -f 'name=inv') --force && docker image rm $(docker images sgoldber61/inv* -q) --force && docker volume rm $(docker volume ls -q -f 'name=inventory') --force",
+    "add-dep": "bash ./scripts/add-npm-dep.sh",
+    "reset-db": "bash ./scripts/reset-db.sh",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sgoldber61/inventory_manager.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/sgoldber61/inventory_manager/issues"
+  },
+  "homepage": "https://github.com/sgoldber61/inventory_manager#readme",
+  "dependencies": {
+    "express": "^4.16.4",
+    "pg": "^7.10.0"
+  },
+  "devDependencies": {
+    "nodemon": "^1.18.11"
+  }
+}

@@ -1,0 +1,12 @@
+version: '3'
+services:
+  bash:
+    image: sgoldber61/inv-dev
+    container_name: 'inv-dev'
+    ports:
+      - "8080:8080"
+    volumes:
+      - .:/usr/src/app
+      - node_modules:/usr/src/app/node_modules
+volumes:
+  node_modules:
