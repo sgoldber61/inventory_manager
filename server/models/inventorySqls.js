@@ -85,13 +85,13 @@ exports.insertToStore = async (client, quantity, currDate) => {
  */
 exports.updateRecords = async (client, purchased, sold, inventoryChange, currDate) => {
   const queryText = `
-    UPDATE records as rc
+    UPDATE records AS rc
     SET purchased = rc.purchased + $1, sold = rc.sold + $2,
     in_inventory = rc.in_inventory + $3
     WHERE rc.day = $4;
   `;
   const queryParams = [purchased, sold, inventoryChange, currDate];
-  await client.query(queryText, queryParams);
+  return client.query(queryText, queryParams);
 };
 
 /**
@@ -103,11 +103,36 @@ exports.updateRecords = async (client, purchased, sold, inventoryChange, currDat
  */
 exports.updateStorePurchase = async (client, quantity, currDate) => {
   const queryText = `
-    UPDATE store as st
+    UPDATE store AS st
     SET quantity = st.quantity + $1
     WHERE st.day = $2
   `;
   const queryParams = [quantity, currDate];
-  await client.query(queryText, queryParams);
+  return client.query(queryText, queryParams);
 };
 
+/**
+ * During a sell, remove from the FIFO store queue the banans to be sold
+ * @param {pg.Client} client postgres client from pool
+ * @param {Number} quantity number of banans being sold
+ */
+exports.removeFromStoreQueue = async (client, quantity) => {
+  let queryText = `
+    WITH st AS
+    (SELECT day, SUM(quantity) OVER (ORDER BY day) AS total FROM store GROUP BY quantity, day ORDER BY day)
+    DELETE FROM store USING st
+    WHERE st.day = store.day AND st.total < $1
+    RETURNING st.total;
+  `;
+  let queryParams = [quantity];
+  const {rows} = await client.query(queryText, queryParams);
+  const remaining = quantity - rows[rows.length - 1].total;
+  
+  queryText = `
+    UPDATE store AS st
+    SET quantity = st.quantity - $1
+    WHERE st.day = (SELECT day from store ORDER BY day LIMIT 1)
+  `;
+  queryParams = [remaining];
+  return client.query(queryText, queryParams);
+};

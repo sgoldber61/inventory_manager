@@ -71,12 +71,14 @@ exports.recordSell = async (req, res, next) => {
     if (quantity > lastInInventory - numExpired)
       throw new Error('cannot sell more than the number of freshly available banans');
     
-    // upsert purchase into records
+    // upsert sell into records
     if (currDate > lastDay) {
       await sqls.insertToRecords(client, 0, quantity, lastInInventory - quantity - numExpired, currDate);
     } else {
       await sqls.updateRecords(client, 0, quantity, -quantity - numExpired, currDate);
     }
+    // remove sold banans from store queue
+    await sqls.removeFromStoreQueue(client, quantity);
     
     res.locals.results = await client.query('COMMIT');
   } catch(err) {
