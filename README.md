@@ -35,7 +35,7 @@ expire on 2019-01-10, meaning they can no longer be sold on 2019-01-11)
 Inputs are start date (YYYY-MM-DD) and end date (YYYY-MM-DD) on URL query string. Dates are inclusive.
 
 ### Assumptions
-1. Recording a new purchase/sell can be done either on or after the day of the last purchase/sell, but NOT before. We're not allowed to rewrite history.
+1. Recording a new purchase/sell can be done either on or after the day of the last purchase/sell, but *not* before. We're not allowed to rewrite history.
 2. Recording a purchase (with valid input) can always be done, but recording a sell can only be done if there are enough fresh bananas in our store.
 3. If the provided end date in the analytics API is _after_ the last recorded date, then we assume that all banans during the time from the last recorded date to the provided end date that should expire will expire. However, if later we record transactions (buy/sell) between those dates, then a subsequent hit to the analytics API with the same provided end date may give a different result for number of expired banans (because we might know that some of those bananas get sold rather than become expired).
 
