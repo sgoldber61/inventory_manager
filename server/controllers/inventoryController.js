@@ -147,8 +147,6 @@ exports.retrieveAnalytics = async (req, res, next) => {
     const {inInventory, expired} = await sqls.getExpiryData(client, startDate, endDate);
     const centsProfit = PRICE * sold - COST * purchased;
     const profit = (centsProfit / 10).toLocaleString("en-US", {style:"currency", currency:"USD"});
-    console.log(typeof purchased);
-    console.log(JSON.stringify({purchased, sold, profit, inInventory, expired}));
     
     res.locals.results = {purchased, sold, profit, inInventory, expired};
     await client.query('COMMIT');
