@@ -29,11 +29,11 @@ exports.recordPurchase = async (req, res, next) => {
     
     // upsert purchase into records and store
     if (currDate > lastDay) {
-      await sqls.insertToRecords(client, quantity, lastInInventory + quantity - numExpired, currDate);
+      await sqls.insertToRecords(client, quantity, 0, lastInInventory + quantity - numExpired, currDate);
       await sqls.insertToStore(client, quantity, currDate);
     } else {
-      await sqls.updateRecords(client, quantity - numExpired, currDate);
-      await sqls.updateStore(client, quantity, currDate);
+      await sqls.updateRecords(client, quantity, 0, quantity - numExpired, currDate);
+      await sqls.updateStorePurchase(client, quantity, currDate);
     }
     
     res.locals.results = await client.query('COMMIT');
@@ -47,3 +47,44 @@ exports.recordPurchase = async (req, res, next) => {
   }
 };
 
+exports.recordSell = async (req, res, next) => {
+  const {quantity, date} = req.body;
+  
+  // date of new purchase, and date of purchase of expiring bananas
+  const currDate = new Date(date);
+  const expDate = new Date(currDate.getTime() - EXP_LENGTH);
+  
+  const client = await pool.connect();
+  let error = null;
+  try {
+    await client.query('BEGIN');
+    
+    // date of most recent record
+    const {lastDay, lastInInventory} = await sqls.getRecentRecord(client);
+    
+    if (currDate < lastDay)
+      throw new Error('date cannot be earlier than last recorded date');
+    
+    // determine the banans that need to be marked as expired
+    const numExpired = await sqls.expireOldBananas(client, expDate);
+    
+    if (quantity > lastInInventory - numExpired)
+      throw new Error('cannot sell more than the number of freshly available banans');
+    
+    // upsert purchase into records
+    if (currDate > lastDay) {
+      await sqls.insertToRecords(client, 0, quantity, lastInInventory - quantity - numExpired, currDate);
+    } else {
+      await sqls.updateRecords(client, 0, quantity, -quantity - numExpired, currDate);
+    }
+    
+    res.locals.results = await client.query('COMMIT');
+  } catch(err) {
+    await client.query('ROLLBACK');
+  
+    error = err;
+  } finally {
+    client.release();
+    next(error);
+  }
+};

@@ -44,16 +44,17 @@ exports.expireOldBananas = async (client, expDate) => {
  * If the date of our recording of the purchase/sell is after the last date in
  * the records table, we insert a new row to records
  * @param {pg.Client} client postgres client from pool
- * @param {Number} quantity number of banans purchased at new day (0 for sell)
- * @param {Number} quantity number of banans in store at new day
+ * @param {Number} purchased number of banans purchased at new day
+ * @param {Number} sold number of banans sold at new day
+ * @param {Number} inInventory number of banans in store at new day
  * @param {Date} currDate day of recording new purchase/sell
  */
-exports.insertToRecords = async (client, quantity, inInventory, currDate) => {
+exports.insertToRecords = async (client, purchased, sold, inInventory, currDate) => {
   const queryText = `
-    INSERT INTO records (purchased, in_inventory, day)
-    VALUES ($1, $2, $3);
+    INSERT INTO records (purchased, sold, in_inventory, day)
+    VALUES ($1, $2, $3, $4);
   `;
-  const queryParams = [quantity, inInventory, currDate];
+  const queryParams = [purchased, sold, inInventory, currDate];
   return client.query(queryText, queryParams);
 };
 
@@ -75,29 +76,32 @@ exports.insertToStore = async (client, quantity, currDate) => {
 
 /**
  * If the date of our recording of the purchase/sell equal to the last date in
- * the records table, we modify the last record
+ * the records table, we modify the last record (more banans purchased/sold)
  * @param {pg.Client} client postgres client from pool
- * @param {Number} quantityChange change in number of banans
+ * @param {Number} purchased change in number of banans purchased at new day
+ * @param {Number} sold change in number of banans sold at new day
+ * @param {Number} inventoryChange change in number of banans in inventory
  * @param {Date} currDate day of recording new purchase/sell
  */
-exports.updateRecords = async (client, quantityChange, currDate) => {
+exports.updateRecords = async (client, purchased, sold, inventoryChange, currDate) => {
   const queryText = `
     UPDATE records as rc
-    SET purchased = rc.purchased + $1, in_inventory = rc.in_inventory + $1
-    WHERE rc.day = $2;
+    SET purchased = rc.purchased + $1, sold = rc.sold + $2,
+    in_inventory = rc.in_inventory + $3
+    WHERE rc.day = $4;
   `;
-  const queryParams = [quantityChange, currDate];
+  const queryParams = [purchased, sold, inventoryChange, currDate];
   await client.query(queryText, queryParams);
 };
 
 /**
  * If the date of our recording of the purchase equal to the last date in
- * the records table, we modify the last record
+ * the records table, we modify the last store item (more banans purchased)
  * @param {pg.Client} client postgres client from pool
  * @param {Number} quantity number of banans purchased at new day
  * @param {Date} currDate day of recording new purchase
  */
-exports.updateStore = async (client, quantity, currDate) => {
+exports.updateStorePurchase = async (client, quantity, currDate) => {
   const queryText = `
     UPDATE store as st
     SET quantity = st.quantity + $1
