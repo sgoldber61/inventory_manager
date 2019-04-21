@@ -1,5 +1,6 @@
 const sqls = require('../models/inventorySqls.js');
 const pool = require('../models/pg-pool.js');
+const validate = require('../utils/validate.js');
 const {EXP_LENGTH} = require('../constants/inventory.js');
 
 /**
@@ -9,7 +10,14 @@ const {EXP_LENGTH} = require('../constants/inventory.js');
 exports.recordPurchase = async (req, res, next) => {
   const {quantity, date} = req.body;
   
-  // date of new purchase, and date of purchase of expiring bananas
+  // validate input
+  try {
+    validate.recordTransaction(quantity, date);
+  } catch(err) {
+    return next(err);
+  }
+  
+  // date of new purchase, and date at or before which bananas should expire
   const currDate = new Date(date);
   const expDate = new Date(currDate.getTime() - EXP_LENGTH);
   
@@ -57,7 +65,14 @@ exports.recordPurchase = async (req, res, next) => {
 exports.recordSell = async (req, res, next) => {
   const {quantity, date} = req.body;
   
-  // date of new purchase, and date of purchase of expiring bananas
+  // validate input
+  try {
+    validate.recordTransaction({quantity, date});
+  } catch(err) {
+    return next(err);
+  }
+  
+  // date of new purchase, and date at or before which bananas should expire
   const currDate = new Date(date);
   const expDate = new Date(currDate.getTime() - EXP_LENGTH);
   

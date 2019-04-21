@@ -11,6 +11,9 @@ app.use(bodyParser.json());
 /**
  * Record the purchase of a quantity of bananas, either on after after the date
  * of the latest record currently in the database.
+ * req.body contains:
+ * @param {Number} quantity number of bananas
+ * @param {String} date purchase date in YYYY-MM-DD format
  */
 app.post('/purchase', inventoryController.recordPurchase, (req, res) => {
   const {store} = res.locals;
@@ -21,6 +24,9 @@ app.post('/purchase', inventoryController.recordPurchase, (req, res) => {
  * Record the sell of a quantity of bananas, either on after after the date
  * of the latest record currently in the database. If we cannot sell that many 
  * bananas, respond with an error.
+ * req.body contains:
+ * @param {Number} quantity number of bananas
+ * @param {String} date purchase date in YYYY-MM-DD format
  */
 app.post('/sell', inventoryController.recordSell, (req, res) => {
   const {store} = res.locals;
