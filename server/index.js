@@ -8,13 +8,23 @@ const app = express();
 
 app.use(bodyParser.json());
 
-// api routes
+/**
+ * Record the purchase of a quantity of bananas, either on after after the date
+ * of the latest record currently in the database.
+ */
 app.post('/purchase', inventoryController.recordPurchase, (req, res) => {
-  res.status(200).send(res.locals.results);
+  const {store} = res.locals;
+  res.status(200).send({store});
 });
 
+/**
+ * Record the sell of a quantity of bananas, either on after after the date
+ * of the latest record currently in the database. If we cannot sell that many 
+ * bananas, respond with an error.
+ */
 app.post('/sell', inventoryController.recordSell, (req, res) => {
-  res.status(200).send(res.locals.results);
+  const {store} = res.locals;
+  res.status(200).send({store});
 });
 
 // catch 404 and forward to general error handler

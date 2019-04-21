@@ -36,7 +36,9 @@ exports.recordPurchase = async (req, res, next) => {
       await sqls.updateStorePurchase(client, quantity, currDate);
     }
     
-    res.locals.results = await client.query('COMMIT');
+    // respond with snapshot of current store
+    res.locals.store = await sqls.getCurrentStore(client);
+    await client.query('COMMIT');
   } catch(err) {
     await client.query('ROLLBACK');
     
@@ -47,6 +49,11 @@ exports.recordPurchase = async (req, res, next) => {
   }
 };
 
+/**
+ * Record the sell of a quantity of bananas, either on after after the date
+ * of the latest record currently in the database. If we cannot sell that many 
+ * bananas, respond with an error.
+ */
 exports.recordSell = async (req, res, next) => {
   const {quantity, date} = req.body;
   
@@ -80,7 +87,9 @@ exports.recordSell = async (req, res, next) => {
     // remove sold banans from store queue
     await sqls.removeFromStoreQueue(client, quantity);
     
-    res.locals.results = await client.query('COMMIT');
+    // respond with snapshot of current store
+    res.locals.store = await sqls.getCurrentStore(client);
+    await client.query('COMMIT');
   } catch(err) {
     await client.query('ROLLBACK');
   
@@ -90,3 +99,4 @@ exports.recordSell = async (req, res, next) => {
     next(error);
   }
 };
+

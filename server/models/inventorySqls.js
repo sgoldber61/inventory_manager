@@ -7,7 +7,6 @@ exports.getRecentRecord = async (client) => {
     SELECT day, in_inventory FROM records
     ORDER BY day DESC LIMIT 1;
   `;
-  
   const {rows} = await client.query(queryText);
   const lastRecord = rows[0];
   return {
@@ -34,7 +33,6 @@ exports.expireOldBananas = async (client, expDate) => {
     RETURNING st.quantity;
   `;
   const queryParams = [expDate]; 
-  
   const {rows} = await client.query(queryText, queryParams);
   const numExpired = rows.reduce((acc, result) => acc + result.quantity, 0);
   return numExpired;
@@ -126,7 +124,8 @@ exports.removeFromStoreQueue = async (client, quantity) => {
   `;
   let queryParams = [quantity];
   const {rows} = await client.query(queryText, queryParams);
-  const remaining = quantity - rows[rows.length - 1].total;
+  // calculate remaining bananas we need to delete from store
+  const remaining = rows.length ? quantity - rows[rows.length - 1].total : quantity;
   
   queryText = `
     UPDATE store AS st
@@ -136,3 +135,16 @@ exports.removeFromStoreQueue = async (client, quantity) => {
   queryParams = [remaining];
   return client.query(queryText, queryParams);
 };
+
+/**
+ * During either a buy or sell, obtain a snapshot of the current store queue
+ * @param {pg.Client} client postgres client from pool
+ */
+exports.getCurrentStore = async (client) => {
+  const queryText = `
+    SELECT quantity, day FROM store ORDER BY day;
+  `;
+  const {rows} = await client.query(queryText);
+  return rows;
+};
+
