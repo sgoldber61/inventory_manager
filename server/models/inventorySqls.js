@@ -1,3 +1,5 @@
+const {EXP_LENGTH} = require('../constants/inventory.js');
+
 /**
  * Obtain most recent day and inventory count in records
  * @param {pg.Client} client postgres client from pool
@@ -103,7 +105,7 @@ exports.updateStorePurchase = async (client, quantity, currDate) => {
   const queryText = `
     UPDATE store AS st
     SET quantity = st.quantity + $1
-    WHERE st.day = $2
+    WHERE st.day = $2;
   `;
   const queryParams = [quantity, currDate];
   return client.query(queryText, queryParams);
@@ -130,7 +132,7 @@ exports.removeFromStoreQueue = async (client, quantity) => {
   queryText = `
     UPDATE store AS st
     SET quantity = st.quantity - $1
-    WHERE st.day = (SELECT day from store ORDER BY day LIMIT 1)
+    WHERE st.day = (SELECT day from store ORDER BY day LIMIT 1);
   `;
   queryParams = [remaining];
   return client.query(queryText, queryParams);
@@ -146,5 +148,76 @@ exports.getCurrentStore = async (client) => {
   `;
   const {rows} = await client.query(queryText);
   return rows;
+};
+
+/**
+ * Return the number of purchased and sold items from startDate to endDate
+ * @param {pg.Client} client postgres client from pool
+ * @param {Date} startDate beginning of date window
+ * @param {Date} endDate beginning of date window
+ */
+exports.getBuySellData = async (client, startDate, endDate) => {
+  const queryText = `
+    SELECT COALESCE(SUM(purchased), 0) AS purchased, COALESCE(SUM(sold), 0) AS sold
+    FROM records WHERE $1 <= day AND day <= $2;
+  `;
+  const queryParams = [startDate, endDate];
+  const results = (await client.query(queryText, queryParams)).rows[0];
+  const purchased = Number(results.purchased);
+  const sold = Number(results.sold);
+  return {purchased, sold};
+};
+
+/**
+ * Return the number of expiring banans from startDate to endDate
+ * This has to be computed by going back in time, because banana expirations
+ * are recorded in our records table at the date they are bought, not the
+ * date they actually expire
+ *
+ * Also returns the number of bananas in inventory, taking into account
+ * expirations if the endDate is after the last date stored in the records table
+ * @param {pg.Client} client postgres client from pool
+ * @param {Date} startDate beginning of date window
+ * @param {Date} endDate beginning of date window
+ */
+exports.getExpiryData = async (client, startDate, endDate) => {
+  const startExpire = new Date(startDate.getTime() - EXP_LENGTH);
+  const endExpire = new Date(endDate.getTime() - EXP_LENGTH);
+  
+  // obtain last recorded inventory count
+  let queryText = `
+    SELECT day, in_inventory FROM records
+    WHERE day <= $1
+    ORDER BY day DESC LIMIT 1;
+  `;
+  let queryParams = [endDate];
+  let results = (await client.query(queryText, queryParams)).rows[0];
+  const inInventory = results ? results.in_inventory: 0;
+  const recordedExpire = new Date((results ? results.day: startDate).getTime() - EXP_LENGTH);
+  
+  // obtain banans expired from beginning to last recorded record
+  queryText = `
+    SELECT COALESCE(SUM(expired), 0) AS num_expired FROM records
+    WHERE $1 <= day AND day <= $2;
+  `;
+  queryParams = [startExpire, recordedExpire];
+  results = (await client.query(queryText, queryParams)).rows[0];
+  const recordedNumExpired = Number(results.num_expired);
+  
+  // obtain banans that should expire within the store queue because
+  // endExpire is after recordedExpire and so banans will expire within
+  // the queue even though these expirations are not recorded
+  queryText = `
+    SELECT COALESCE(SUM(quantity), 0) AS num_expired FROM store
+    WHERE $1 <= day AND day <= $2;
+  `;
+  queryParams = [recordedExpire, endExpire];
+  results = (await client.query(queryText, queryParams)).rows[0];
+  const postRecordedNumExpired = Number(results.num_expired);
+  
+  return {
+    inInventory: inInventory - postRecordedNumExpired,
+    expired: recordedNumExpired + postRecordedNumExpired
+  };
 };
 

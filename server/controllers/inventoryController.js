@@ -1,7 +1,7 @@
 const sqls = require('../models/inventorySqls.js');
 const pool = require('../models/pg-pool.js');
-const validate = require('../utils/validate.js');
-const {EXP_LENGTH} = require('../constants/inventory.js');
+const validate = require('../utils/validateInventory.js');
+const {EXP_LENGTH, PRICE, COST} = require('../constants/inventory.js');
 
 /**
  * Record the purchase of a quantity of bananas, either on after after the date
@@ -67,7 +67,7 @@ exports.recordSell = async (req, res, next) => {
   
   // validate input
   try {
-    validate.recordTransaction({quantity, date});
+    validate.recordTransaction(quantity, date);
   } catch(err) {
     return next(err);
   }
@@ -104,6 +104,53 @@ exports.recordSell = async (req, res, next) => {
     
     // respond with snapshot of current store
     res.locals.store = await sqls.getCurrentStore(client);
+    await client.query('COMMIT');
+  } catch(err) {
+    await client.query('ROLLBACK');
+  
+    error = err;
+  } finally {
+    client.release();
+    next(error);
+  }
+};
+
+/**
+ * Obtain analytics for number of banans purchased and sold within time interval
+ * Obtatain profit (which may be negative)
+ * Also obtain number of banans that would be in inventory
+ * and expired within time interval, noting that if endDate is after
+ * last recorded time, assume banans in queue that should expire will expire
+ */
+exports.retrieveAnalytics = async (req, res, next) => {
+  const {start_date, end_date} = req.query;
+  
+  // validate input
+  try {
+    validate.retrieveAnalytics(start_date, end_date);
+  } catch(err) {
+    return next(err);
+  }
+  
+  const startDate = new Date(start_date);
+  const endDate = new Date(end_date);
+  
+  const client = await pool.connect();
+  let error = null;
+  try {
+    await client.query('BEGIN');
+    
+    // obtain number of banans purchased and sold within time interval
+    let {purchased, sold} = await sqls.getBuySellData(client, startDate, endDate);
+    // obtain number of banans that would be in inventory and expired within time interval
+    // (if endDate is after last recorded time, assume banans in queue that should expire will expire)
+    const {inInventory, expired} = await sqls.getExpiryData(client, startDate, endDate);
+    const centsProfit = PRICE * sold - COST * purchased;
+    const profit = (centsProfit / 10).toLocaleString("en-US", {style:"currency", currency:"USD"});
+    console.log(typeof purchased);
+    console.log(JSON.stringify({purchased, sold, profit, inInventory, expired}));
+    
+    res.locals.results = {purchased, sold, profit, inInventory, expired};
     await client.query('COMMIT');
   } catch(err) {
     await client.query('ROLLBACK');
