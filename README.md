@@ -27,7 +27,7 @@ expire on 2019-01-10, meaning they can no longer be sold on 2019-01-11)
 ```
 {
   "quantity": 4,
-	"date": "2019-01-04"
+  "date": "2019-01-04"
 }
 ```
 2. `POST /api/sell` Selling API: record the selling of bananas. Input is how many bananas were sold (int) and the sell date (YYYY-MM-DD) on JSON request body.
